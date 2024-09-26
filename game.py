@@ -15,6 +15,9 @@ class BoardState:
         self.state = np.array([1,2,3,4,5,3,50,51,52,53,54,52])
         self.decode_state = [self.decode_single_pos(d) for d in self.state]
 
+        self.player0 = [0,1,2,3,4]
+        self.player1 = [6,7,8,9,10]
+
     def update(self, idx, val):
         """
         Updates both the encoded and decoded states
@@ -37,7 +40,7 @@ class BoardState:
 
         TODO: You need to implement this.
         """
-        raise NotImplementedError("TODO: Implement this function")
+        return int(cr[0] + (cr[1]*self.N_COLS))
 
     def decode_single_pos(self, n: int):
         """
@@ -48,7 +51,7 @@ class BoardState:
 
         TODO: You need to implement this.
         """
-        raise NotImplementedError("TODO: Implement this function")
+        return (int(n % self.N_COLS), int(n // self.N_COLS))
 
     def is_termination_state(self):
         """
@@ -56,11 +59,13 @@ class BoardState:
         one of the player's move their ball to the opposite side of the board.
 
         You can assume that `self.state` contains the current state of the board, so
-        check whether self.state represents a termainal board state, and return True or False.
+        check whether self.state represents a terminal board state, and return True or False.
         
         TODO: You need to implement this.
         """
-        raise NotImplementedError("TODO: Implement this function")
+        player1_wins = (self.decode_state[5][1] == (self.N_ROWS-1))
+        player2_wins = (self.decode_state[11][1] == 0)
+        return self.is_valid() & (player1_wins | player2_wins)
 
     def is_valid(self):
         """
@@ -75,7 +80,16 @@ class BoardState:
         
         TODO: You need to implement this.
         """
-        raise NotImplementedError("TODO: Implement this function")
+        #blocks must be on board
+        valid_block_pos = [
+            (c >= 0 & c < self.N_COLS) & (r >= 0 & r < self.N_ROWS)
+            for c, r in self.decode_state
+        ]
+        #blocks cannot overlap
+        no_overlaps = len(np.unique(self.state[np.r_[0:5,6:11]])) == 10
+        #ball must be on a block
+        valid_ball_pos = (self.state[5] in self.state[0:5]) & (self.state[11] in self.state[6:11])
+        return all(valid_block_pos) & no_overlaps & valid_ball_pos
 
 class Rules:
 
@@ -95,7 +109,25 @@ class Rules:
         
         TODO: You need to implement this.
         """
-        raise NotImplementedError("TODO: Implement this function")
+        #store original loc
+        orig_loc = board_state.state[piece_idx]
+        #handle edge case where player has the ball
+        if orig_loc in board_state.state[5,11]:
+            return []
+        #generate all 8 moves
+        orig_loc_decoded = board_state.decode_state[piece_idx]
+        moves = [
+            board_state.encode_single_pos(orig_loc_decoded[0]+x, orig_loc_decoded[1]+y) for x, y in 
+            [(2, 1), (1, 2), (-2, 1), (1, -2), (-1, 2), (2, -1), (-1, -2), (-2, -1)]
+        ]
+        #keep if board would be valid with that move
+        def check_valid(m):
+            board_state.update(piece_idx, move)
+            return board_state.is_valid()
+        moves = [m for m in moves if check_valid(m)]
+        #return the piece to its starting place
+        board_state.update(piece_idx, move)
+        return moves
 
     @staticmethod
     def single_ball_actions(board_state, player_idx):
@@ -112,7 +144,48 @@ class Rules:
         
         TODO: You need to implement this.
         """
-        raise NotImplementedError("TODO: Implement this function")
+        #get each teams position
+        teammates = board_state.player0 if player_idx == 0 else board_state.player1
+        opponents = board_state.player1 if player_idx == 0 else board_state.player0
+        #get ball 
+        ball_pos = board_state.state[5] if player_idx == 0 else board_state.state[11]
+        opp_pos = np.array(board_state.decode_state)[opponents] 
+
+        def check_pass(pos1, pos2):
+            pos1, pos2 = [board_state.decode_single_pos(p) for p in [pos1, pos2]]
+            #pass along column if on same column
+            if pos1[0] == pos2[0]:
+                #and no opponents in rows between
+                return not any(
+                    ((opp[1] > pos1[1]) & (opp[1] < pos2[1])) | ((opp[1] > pos2[1]) & (opp[1] < pos1[1]))
+                    for opp in opp_pos if opp[0] == pos1[0]
+                )
+            #pass along row if on same row
+            elif pos1[1] == pos2[1]:
+                #and no opponents in columns between
+                return not any(
+                    ((opp[0] > pos1[0]) & (opp[0] < pos2[0])) | ((opp[0] > pos2[0]) & (opp[0] < pos1[0]))
+                    for opp in opp_pos if opp[1] == pos1[1]
+                )
+            #pass along diagonal if abs diff between rows and cols is the same
+            elif abs(pos1[0]-pos2[0]) == abs(pos1[1]-pos2[1]):
+                #and no opponents on diagonal between
+                cols, rows = sorted([pos1[0], pos2[0]]), sorted([pos1[1], pos2[1]])
+                return not any(
+                    ((opp[0] > cols[0]) & (opp[0] < cols[1])) & ((opp[1] > rows[0]) & (opp[1] < rows[1]))
+                    for opp in opp_pos if abs(opp[0]-pos1[0]) == abs(opp[1]-pos1[1])
+                )
+            else:
+                return False
+
+        #start from who has ball
+        reachable = new_reachable = set([ball_pos])
+        unreachable = set(board_state.state[teammates]) - new_reachable
+        while len(new_reachable) > 0 and len(unreachable) > 0:
+            new_reachable = set(u for u in unreachable for t in reachable if check_pass(t, u))
+            reachable |= new_reachable
+            unreachable -= new_reachable
+        return set(int(t) for t in reachable if t != ball_pos)
 
 class GameSimulator:
     """
