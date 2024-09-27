@@ -65,7 +65,7 @@ class GameStateProblem(Problem):
 
         TODO: You need to set self.search_alg_fnc here
         """
-        self.search_alg_fnc = None
+        self.search_alg_fnc = self.searching
 
     def get_actions(self, state: tuple):
         """
@@ -135,4 +135,9 @@ class GameStateProblem(Problem):
         ## ...
         return solution ## Solution is an ordered list of (s,a)
     """
+
+    def searching(self):
+        solution = [()]
+        return solution
+
 

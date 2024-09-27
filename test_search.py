@@ -70,6 +70,16 @@ class TestSearch:
         assert (0,6) not in generated_actions
         assert (4,0) not in generated_actions
 
+        #piece moves
+        assert (0,14) in generated_actions
+        assert (0,16) in generated_actions
+
+        #ball moves
+        assert (5,1) in generated_actions
+        assert (5,2) in generated_actions
+        assert (5,4) in generated_actions
+        assert (5,5) in generated_actions
+
     ## NOTE: You are highly encouraged to add failing test cases here
     ## in order to test your validate_action implementation. To add an
     ## invalid action, fill in the action tuple, the player_idx, the

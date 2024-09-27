@@ -82,7 +82,7 @@ class BoardState:
         """
         #blocks must be on board
         valid_block_pos = [
-            (c >= 0 & c < self.N_COLS) & (r >= 0 & r < self.N_ROWS)
+            ((c >= 0) & (c < self.N_COLS)) & ((r >= 0) & (r < self.N_ROWS))
             for c, r in self.decode_state
         ]
         #blocks cannot overlap
@@ -112,21 +112,27 @@ class Rules:
         #store original loc
         orig_loc = board_state.state[piece_idx]
         #handle edge case where player has the ball
-        if orig_loc in board_state.state[5,11]:
+        if orig_loc in board_state.state[[5,11]]:
             return []
         #generate all 8 moves
         orig_loc_decoded = board_state.decode_state[piece_idx]
         moves = [
-            board_state.encode_single_pos(orig_loc_decoded[0]+x, orig_loc_decoded[1]+y) for x, y in 
-            [(2, 1), (1, 2), (-2, 1), (1, -2), (-1, 2), (2, -1), (-1, -2), (-2, -1)]
+            (orig_loc_decoded[0]+x, orig_loc_decoded[1]+y)
+            for (x, y) in [(2, 1), (1, 2), (-2, 1), (1, -2), (-1, 2), (2, -1), (-1, -2), (-2, -1)]
+        ]
+        #check valid before encoding
+        moves = [
+            board_state.encode_single_pos(m) for m in moves 
+            if (m[0] >= 0) and (m[0] < board_state.N_COLS)
+            and (m[1] >= 0) and (m[1] < board_state.N_ROWS)
         ]
         #keep if board would be valid with that move
         def check_valid(m):
-            board_state.update(piece_idx, move)
+            board_state.update(piece_idx, m)
             return board_state.is_valid()
         moves = [m for m in moves if check_valid(m)]
         #return the piece to its starting place
-        board_state.update(piece_idx, move)
+        board_state.update(piece_idx, orig_loc)
         return moves
 
     @staticmethod
@@ -180,11 +186,14 @@ class Rules:
 
         #start from who has ball
         reachable = new_reachable = set([ball_pos])
+        #record states that are so far unreachable
         unreachable = set(board_state.state[teammates]) - new_reachable
+        #check whether unreachable states are reachable from new reachable states
         while len(new_reachable) > 0 and len(unreachable) > 0:
             new_reachable = set(u for u in unreachable for t in reachable if check_pass(t, u))
             reachable |= new_reachable
             unreachable -= new_reachable
+        #remove balls current position
         return set(int(t) for t in reachable if t != ball_pos)
 
 class GameSimulator:
@@ -245,7 +254,10 @@ class GameSimulator:
             
         TODO: You need to implement this.
         """
-        raise NotImplementedError("TODO: Implement this function")
+        player_pieces = self.game_state.player0 if player_idx == 0 else self.game_state.player1
+        piece_moves = {i:Rules.single_piece_actions(self.game_state, player_pieces[i]) for i in range(5)}
+        ball_moves = [(5,m) for m in Rules.single_ball_actions(self.game_state, player_idx)]
+        return [(i,m) for i in piece_moves for m in piece_moves[i]]+ball_moves
 
     def validate_action(self, action: tuple, player_idx: int):
         """
