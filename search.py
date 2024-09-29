@@ -142,9 +142,7 @@ class GameStateProblem(Problem):
 
     def player_manhattan(self, state, goal):
         goals = {p:s for s, p in self.goal_state_set}
-        if state[1] == 0:
-            return self.manhattan(state[0][0:6], goals[0][0:6])
-        return self.manhattan(state[0][6:], goals[1][6:])
+        return self.manhattan(state[0], goals[state[1]])
 
     def heuristic_selector(self, name, state, goal):
         if name is None:
