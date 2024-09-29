@@ -1,6 +1,7 @@
 import numpy as np
 import queue
 from game import BoardState, GameSimulator, Rules
+import heapq
 
 class Problem:
     """
@@ -65,7 +66,7 @@ class GameStateProblem(Problem):
 
         TODO: You need to set self.search_alg_fnc here
         """
-        self.search_alg_fnc = self.searching
+        self.search_alg_fnc = self.a_star
 
     def get_actions(self, state: tuple):
         """
@@ -136,8 +137,45 @@ class GameStateProblem(Problem):
         return solution ## Solution is an ordered list of (s,a)
     """
 
-    def searching(self):
-        solution = [()]
+    def manhattan(a, b):
+        return sum(abs(val1-val2) for val1, val2 in zip(a,b))
+
+    def a_star(self):
+        #quickly handle at goal state
+        if self.is_goal(self.initial_state):
+            return [(self.initial_state, None)]
+
+        #setup priority queue
+        frontier = []
+        heapq.heapify(frontier)
+        #add the starting state to the pq, map to state, parent, and cost
+        curr_state = self.initial_state
+        heapq.heappush(frontier, (0, curr_state))
+        parent, cost = {curr_state:(curr_state, None)}, {curr_state:0}
+
+
+        #while states to explore
+        while len(frontier) != 0:
+            #get the next in pq
+            curr_cost, curr_state = heapq.heappop(frontier)
+            #check if reached a goal state
+            if self.is_goal(curr_state):
+                break
+            #iterate through actions
+            for action in self.get_actions(curr_state):
+                #new cost is prev cost + 1
+                new_cost = curr_cost+1
+                #get next state and add its new cost
+                new_state = self.execute(curr_state, action)
+                if new_state not in cost or new_cost < cost[new_state]:
+                    cost[new_state] = new_cost
+                    heapq.heappush(frontier, (new_cost, new_state))#+manhattan(new_state, self.goal_board_state))
+                    parent[new_state] = (curr_state, action)
+
+        #work backwards to construct solution
+        parental = (curr_state, )
+        solution = [(curr_state, None)]
+        while parental[0] != self.initial_state:
+            parental = parent[parental[0]]
+            solution = [parental]+solution
         return solution
-
-
