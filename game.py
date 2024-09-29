@@ -274,10 +274,30 @@ class GameSimulator:
         
         TODO: You need to implement this.
         """
-        if False:
-            raise ValueError("For each case that an action is not valid, specify the reason that the action is not valid in this ValueError.")
-        if True:
-            return True
+        team = self.game_state.player0 if player_idx == 0 else self.game_state.player1
+        #validate ball
+        if action[0] == 5:
+            if action[1] not in self.game_state.state[team]:
+                raise ValueError("ball not with player")
+        else:
+
+            c, r = self.game_state.decode_single_pos(action[1])
+            if ((c < 0) & (c >= self.game_state.N_COLS)) | ((r < 0) & (r >= self.game_state.N_ROWS)):
+                raise ValueError("invalid position")
+
+            orig_pos = self.game_state.decode_state[action[0]+(player_idx*6)]
+            if not (
+                ((abs(orig_pos[0] - c) == 2) & (abs(orig_pos[1] - r) == 1)) |
+                ((abs(orig_pos[0] - c) == 1) & (abs(orig_pos[1] - r) == 2))
+            ):
+                raise ValueError("invalid movement")
+
+            if orig_pos == self.game_state.decode_state[team[-1]]:
+                raise ValueError("can't move player with ball")
+
+            if action[1] in self.game_state.state[np.r_[0:5,6:11]]:
+                raise ValueError("overlapping with another player")
+        return True
     
     def update(self, action: tuple, player_idx: int):
         """
