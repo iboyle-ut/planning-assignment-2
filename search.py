@@ -150,7 +150,6 @@ class GameStateProblem(Problem):
         elif name == "player_manhattan":
             return self.player_manhattan(state, goal)
 
-
     def a_star(self, heurisitic_fn="player_manhattan"):
         #quickly handle at goal state
         if self.is_goal(self.initial_state):
@@ -171,6 +170,7 @@ class GameStateProblem(Problem):
             curr_cost, curr_state = heapq.heappop(frontier)
             #check if reached a goal state
             if self.is_goal(curr_state):
+                parent[curr_state] = (curr_state, None)
                 break
             #iterate through actions
             for action in self.get_actions(curr_state):
