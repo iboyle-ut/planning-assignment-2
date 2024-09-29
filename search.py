@@ -137,10 +137,22 @@ class GameStateProblem(Problem):
         return solution ## Solution is an ordered list of (s,a)
     """
 
-    def manhattan(a, b):
+    def manhattan(self, a, b):
         return sum(abs(val1-val2) for val1, val2 in zip(a,b))
 
-    def a_star(self):
+    def player_manhattan(self, state, goal):
+        goals = {p:s for s, p in self.goal_state_set}
+        if state[1] == 0:
+            return self.manhattan(state[0][0:6], goals[0][0:6])
+        return self.manhattan(state[0][6:], goals[1][6:])
+
+    def heuristic_selector(self, name, state, goal):
+        if name is None:
+            return 0
+        elif name == "player_manhattan":
+            return self.player_manhattan(state, goal)
+
+    def a_star(self, heuristic_fn="player_manhattan"):
         #quickly handle at goal state
         if self.is_goal(self.initial_state):
             return [(self.initial_state, None)]
@@ -160,6 +172,7 @@ class GameStateProblem(Problem):
             curr_cost, curr_state = heapq.heappop(frontier)
             #check if reached a goal state
             if self.is_goal(curr_state):
+                parent[curr_state] = (curr_state, None)
                 break
             #iterate through actions
             for action in self.get_actions(curr_state):
@@ -169,7 +182,8 @@ class GameStateProblem(Problem):
                 new_state = self.execute(curr_state, action)
                 if new_state not in cost or new_cost < cost[new_state]:
                     cost[new_state] = new_cost
-                    heapq.heappush(frontier, (new_cost, new_state))#+manhattan(new_state, self.goal_board_state))
+                    heuristic = self.heuristic_selector(heuristic_fn, new_state, self.goal_state_set)
+                    heapq.heappush(frontier, (new_cost+heuristic, new_state))
                     parent[new_state] = (curr_state, action)
 
         #work backwards to construct solution
